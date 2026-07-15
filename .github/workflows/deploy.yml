@@ -35,6 +35,23 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Debug Cloudflare auth
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          python3 - <<'PY'
+          import os,urllib.request
+          t=os.environ.get('CLOUDFLARE_API_TOKEN') or ''
+          a=os.environ.get('CLOUDFLARE_ACCOUNT_ID') or ''
+          print('token_len', len(t), 'prefix', repr(t[:8]), 'suffix', repr(t[-4:]), 'has_ws', any(c.isspace() for c in t))
+          print('account', a)
+          req=urllib.request.Request('https://api.cloudflare.com/client/v4/user/tokens/verify', headers={'Authorization': f'Bearer {t}'})
+          print(urllib.request.urlopen(req).read().decode())
+          req2=urllib.request.Request(f'https://api.cloudflare.com/client/v4/accounts/{a}/d1/database', headers={'Authorization': f'Bearer {t}'})
+          print(urllib.request.urlopen(req2).read().decode()[:300])
+          PY
+
       - name: Run deploy script
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
