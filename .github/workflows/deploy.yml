@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Get full git history for checking file changes
+          fetch-depth: 0
 
       - name: Get previous tag
         id: previoustag
@@ -36,20 +36,26 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Debug Cloudflare auth
+        continue-on-error: true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           python3 - <<'PY'
-          import os,urllib.request
-          t=os.environ.get('CLOUDFLARE_API_TOKEN') or ''
-          a=os.environ.get('CLOUDFLARE_ACCOUNT_ID') or ''
-          print('token_len', len(t), 'prefix', repr(t[:8]), 'suffix', repr(t[-4:]), 'has_ws', any(c.isspace() for c in t))
-          print('account', a)
-          req=urllib.request.Request('https://api.cloudflare.com/client/v4/user/tokens/verify', headers={'Authorization': f'Bearer {t}'})
-          print(urllib.request.urlopen(req).read().decode())
-          req2=urllib.request.Request(f'https://api.cloudflare.com/client/v4/accounts/{a}/d1/database', headers={'Authorization': f'Bearer {t}'})
-          print(urllib.request.urlopen(req2).read().decode()[:300])
+          import os, urllib.request
+          t = os.environ.get("CLOUDFLARE_API_TOKEN") or ""
+          a = os.environ.get("CLOUDFLARE_ACCOUNT_ID") or ""
+          print("token_len", len(t), "prefix", repr(t[:8]), "suffix", repr(t[-4:]), "has_ws", any(c.isspace() for c in t))
+          print("account_len", len(a), "account_prefix", repr(a[:8]))
+          def call(url):
+              req = urllib.request.Request(url, headers={"Authorization": f"Bearer {t}"})
+              try:
+                  with urllib.request.urlopen(req) as r:
+                      print(url, r.status, r.read()[:240])
+              except Exception as e:
+                  print(url, "ERR", e)
+          call("https://api.cloudflare.com/client/v4/user/tokens/verify")
+          call(f"https://api.cloudflare.com/client/v4/accounts/{a}/d1/database")
           PY
 
       - name: Run deploy script
@@ -69,8 +75,8 @@ jobs:
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
         run: pnpm dlx tsx scripts/deploy/index.ts
 
-      # Clean up
       - name: Post deployment cleanup
+        if: always()
         run: |
           rm -f .env*.*
           rm -f wrangler*.json
