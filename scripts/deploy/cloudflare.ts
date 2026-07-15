@@ -9,8 +9,9 @@ const DATABASE_NAME = process.env.DATABASE_NAME || "moemail-db";
 const KV_NAMESPACE_NAME = process.env.KV_NAMESPACE_NAME || "moemail-kv";
 const DATABASE_ID = process.env.DATABASE_ID;
 
+// API Token auth (not Global API Key). cloudflare SDK uses `apiToken` for tokens.
 const client = new Cloudflare({
-  apiKey: CF_API_TOKEN,
+  apiToken: CF_API_TOKEN,
 });
 
 export const getPages = async () => {
